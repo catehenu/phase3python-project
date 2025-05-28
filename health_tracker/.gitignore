@@ -1,1 +1,9 @@
-env/
+node_modules/
+.env
+dist/
+*.log
+Pipfile/
+Pipfile.lock/
+script.py.mako/
+.pytest_cache
+
