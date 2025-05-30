@@ -43,9 +43,9 @@ class MealPlan(Base):
     __tablename__ = "meal_plans"
 
     id = Column(Integer, primary_key=True)
-    week_number = Column(Integer, nullable=False)
-    description = Column(String(255), nullable=True)  # Changed from 'meals' to 'description' for clarity
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
+    user_id = Column(Integer, ForeignKey('users.id'))
+    meal = Column(String, nullable=False)
+    day = Column(Date, nullable=False)
+    
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="meal_plans")
