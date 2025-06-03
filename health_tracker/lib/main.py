@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from config import Session
-from models import User, FoodEntry, Goal, MealPlan  # Ensure models are correctly defined
+from models import User, FoodEntry, Goal, MealPlan
 
 # ========== USER OPERATIONS ==========
 def create_user():
@@ -229,6 +229,7 @@ def main():
         if main_choice == '1':
             while True:
                 os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Users ===")
                 print("1. Create User")
                 print("2. List Users")
                 print("3. Back to Main Menu")
@@ -246,6 +247,7 @@ def main():
         elif main_choice == '2':
             while True:
                 os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Food Entries ===")
                 print("1. Add Food Entry")
                 print("2. List Food Entries")
                 print("3. Back to Main Menu")
@@ -263,4 +265,55 @@ def main():
         elif main_choice == '3':
             while True:
                 os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Goals ===")
                 print("1. Set Goal")
+                print("2. List Goals")
+                print("3. Back to Main Menu")
+                goal_choice = input("Select: ")
+                if goal_choice == '1':
+                    set_goal()
+                elif goal_choice == '2':
+                    list_goals()
+                elif goal_choice == '3':
+                    break
+                else:
+                    print("Invalid option.")
+                input("Press Enter to continue...")
+
+        elif main_choice == '4':
+            while True:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Meal Plans ===")
+                print("1. Add Meal Plan")
+                print("2. List Meal Plans")
+                print("3. Update Meal Plan")
+                print("4. Back to Main Menu")
+                meal_choice = input("Select: ")
+                if meal_choice == '1':
+                    add_meal_plan()
+                elif meal_choice == '2':
+                    list_meal_plans()
+                elif meal_choice == '3':
+                    update_meal_plan()
+                elif meal_choice == '4':
+                    break
+                else:
+                    print("Invalid option.")
+                input("Press Enter to continue...")
+
+        elif main_choice == '5':
+            os.system("cls" if os.name == "nt" else "clear")
+            monitor_goal_progress()
+            input("Press Enter to continue...")
+
+        elif main_choice == '6':
+            print("Exiting. Stay healthy!")
+            break
+
+        else:
+            print("Invalid option.")
+            input("Press Enter to continue...")
+
+# Entry point
+if __name__ == "__main__":
+    main()
