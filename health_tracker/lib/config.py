@@ -48,10 +48,15 @@ def add_food_entry():
 
 def list_food_entries():
     user_name = input("Enter User Name (leave blank for all): ").strip()
-    today = dt_date.today()
-    print(f"Showing entries for date: {today}")
+    date_input = input("Enter Date to View (YYYY-MM-DD): ").strip()
 
-    query = session.query(FoodEntry).filter_by(date=today)
+    try:
+        view_date = datetime.strptime(date_input, "%Y-%m-%d").date()
+    except ValueError:
+        print("Invalid date format. Please use YYYY-MM-DD.")
+        return
+
+    query = session.query(FoodEntry).filter_by(date=view_date)
 
     if user_name:
         user = session.query(User).filter_by(name=user_name).first()
@@ -61,8 +66,13 @@ def list_food_entries():
         query = query.filter_by(user_id=user.id)
 
     entries = query.all()
+    if not entries:
+        print(f"No entries found for {view_date}.")
+        return
+
+    print(f"\nFood Entries for {view_date}:")
     for entry in entries:
-        print(f"{entry.date} | {entry.food} | {entry.calories} kcal | User: {entry.user.name}")
+        print(f"{entry.food} | {entry.calories} kcal | User: {entry.user.name}")
 
 def daily_summary_report():
     user_name = input("Enter User Name: ")
@@ -72,7 +82,11 @@ def daily_summary_report():
         return
 
     date_input = input("Enter date (YYYY-MM-DD): ").strip()
-    summary_date = datetime.strptime(date_input, "%Y-%m-%d").date()
+    try:
+        summary_date = datetime.strptime(date_input, "%Y-%m-%d").date()
+    except ValueError:
+        print("Invalid date format.")
+        return
 
     entries = session.query(FoodEntry).filter_by(user_id=user.id, date=summary_date).all()
     total_calories = sum(e.calories for e in entries)
@@ -83,6 +97,7 @@ def daily_summary_report():
     for e in entries:
         print(f"- {e.food}: {e.calories} kcal")
     print(f"\nTotal: {total_calories} kcal")
+
     if latest_goal:
         print(f"Daily Goal: {latest_goal.daily_calories} kcal")
         if total_calories > latest_goal.daily_calories:
@@ -90,7 +105,10 @@ def daily_summary_report():
         else:
             print("✅ Within your goal!")
     else:
-        print("No goals set yet.")
+        print("⚠️ No goals set yet.")
+        choice = input("Would you like to set your goals now? (y/n): ").strip().lower()
+        if choice == 'y':
+            set_goals()
 
 # =============== GOAL OPERATIONS =====================
 def set_goals():
@@ -142,6 +160,7 @@ def generate_daily_meal_plan():
     session.commit()
 
     print("\n✅ Daily Meal Plan saved successfully!")
+
 def view_daily_meal_plan():
     user_name = input("Enter User Name: ").strip()
     user = session.query(User).filter_by(name=user_name).first()
@@ -162,7 +181,6 @@ def view_daily_meal_plan():
         return
 
     print(f"\n🍽️ {user.name}'s Meal Plan for {view_date.strftime('%A')} ({view_date}): {plan.meal}")
-
 
 # =============== MAIN MENU =====================
 def main():
@@ -197,7 +215,7 @@ def main():
                 print("1. Add Food Entry")
                 print("2. List Food Entries")
                 print("3. Daily Summary Report")
-                print("4. Go Back to Main Menu")
+                print("5. Go Back to Main Menu")
                 entry_choice = input("Choice: ")
                 if entry_choice == '1':
                     add_food_entry()
@@ -205,7 +223,7 @@ def main():
                     list_food_entries()
                 elif entry_choice == '3':
                     daily_summary_report()
-                elif entry_choice == '4':
+                elif entry_choice == '5':
                     break
                 input("Press Enter to continue...")
 
@@ -223,21 +241,21 @@ def main():
                 elif goal_choice == '3':
                     break
                 input("Press Enter to continue...")
-        elif choice == '4':
-           while True:
-            os.system("cls" if os.name == "nt" else "clear")
-            print("1. Generate Daily Meal Plan")
-            print("2. View Daily Meal Plan")
-            print("3. Go Back to Main Menu")
-            meal_choice = input("Choice: ")
-            if meal_choice == '1':
-                generate_daily_meal_plan()
-            elif meal_choice == '2':
-                view_daily_meal_plan()
-            elif meal_choice == '3':
-                break
-            input("Press Enter to continue...")
 
+        elif choice == '4':
+            while True:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("1. Generate Daily Meal Plan")
+                print("2. View Daily Meal Plan")
+                print("3. Go Back to Main Menu")
+                meal_choice = input("Choice: ")
+                if meal_choice == '1':
+                    generate_daily_meal_plan()
+                elif meal_choice == '2':
+                    view_daily_meal_plan()
+                elif meal_choice == '3':
+                    break
+                input("Press Enter to continue...")
 
         elif choice == '5':
             print("Exiting. Goodbye!")
