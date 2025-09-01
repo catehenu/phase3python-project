@@ -1,7 +1,7 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import Session
-from models import User, FoodEntry, Goal
+from models import User, FoodEntry, Goal, MealPlan
 
 # ========== USER OPERATIONS ==========
 def create_user():
@@ -31,9 +31,14 @@ def add_food_entry():
         return
 
     food = input("Enter Food Name: ")
-    calories = int(input("Enter Calories: "))
-    date_input = input("Enter Date (YYYY-MM-DD): ")
-    date = datetime.strptime(date_input, "%Y-%m-%d").date()
+    try:
+        calories = int(input("Enter Calories: "))
+        date_input = input("Enter Date (YYYY-MM-DD): ")
+        date = datetime.strptime(date_input, "%Y-%m-%d").date()
+    except ValueError:
+        print("Invalid input.")
+        session.close()
+        return
 
     entry = FoodEntry(food=food, calories=calories, date=date, user=user)
     session.add(entry)
@@ -57,8 +62,13 @@ def list_food_entries():
         query = query.filter_by(user_id=user.id)
 
     if date_input:
-        date = datetime.strptime(date_input, "%Y-%m-%d").date()
-        query = query.filter_by(date=date)
+        try:
+            date = datetime.strptime(date_input, "%Y-%m-%d").date()
+            query = query.filter_by(date=date)
+        except ValueError:
+            print("Invalid date format.")
+            session.close()
+            return
 
     entries = query.all()
     for entry in entries:
@@ -75,13 +85,26 @@ def set_goal():
         session.close()
         return
 
-    daily = int(input("Enter Daily Calorie Goal: "))
-    weekly = int(input("Enter Weekly Calorie Goal: "))
-    goal = Goal(user=user, daily_calories=daily, weekly_calories=weekly)
-    session.add(goal)
+    try:
+        daily = int(input("Enter Daily Calorie Goal: "))
+        weekly = int(input("Enter Weekly Calorie Goal: "))
+    except ValueError:
+        print("Invalid input.")
+        session.close()
+        return
+
+    goal = session.query(Goal).filter_by(user_id=user.id).first()
+    if goal:
+        goal.daily_calories = daily
+        goal.weekly_calories = weekly
+        goal.set_date = datetime.now()
+        print("Goal updated successfully.")
+    else:
+        goal = Goal(user=user, daily_calories=daily, weekly_calories=weekly)
+        session.add(goal)
+        print("Goal set successfully.")
     session.commit()
     session.close()
-    print("Goal set successfully.")
 
 def list_goals():
     session = Session()
@@ -92,9 +115,102 @@ def list_goals():
         session.close()
         return
 
-    for goal in user.goals:
-        print(f"Daily: {goal.daily_calories} | Weekly: {goal.weekly_calories} | Set On: {goal.set_date}")
+    goal = session.query(Goal).filter_by(user_id=user.id).first()
+    if not goal:
+        print("No goals set for this user.")
+    else:
+        print(f"Daily Goal: {goal.daily_calories} cal | Weekly Goal: {goal.weekly_calories} cal | Set On: {goal.set_date}")
     session.close()
+
+def monitor_goal_progress():
+    session = Session()
+    user_name = input("Enter User Name: ")
+    user = session.query(User).filter_by(name=user_name).first()
+    if not user:
+        print("User not found.")
+        session.close()
+        return
+
+    goal = session.query(Goal).filter_by(user_id=user.id).first()
+    if not goal:
+        print("No goals set for this user.")
+        session.close()
+        return
+
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+
+    daily_entries = session.query(FoodEntry).filter_by(user_id=user.id, date=today).all()
+    weekly_entries = session.query(FoodEntry).filter(FoodEntry.user_id == user.id, FoodEntry.date >= start_of_week).all()
+
+    daily_total = sum(entry.calories for entry in daily_entries)
+    weekly_total = sum(entry.calories for entry in weekly_entries)
+
+    print(f"Today's Intake: {daily_total} / {goal.daily_calories} cal")
+    print(f"This Week's Intake: {weekly_total} / {goal.weekly_calories} cal")
+    session.close()
+
+# ========== MEAL PLAN OPERATIONS ==========
+def add_meal_plan():
+    session = Session()
+    user_name = input("Enter User Name: ")
+    user = session.query(User).filter_by(name=user_name).first()
+    if not user:
+        print("User not found.")
+        session.close()
+        return
+
+    try:
+        week_num = int(input("Enter Week Number (ISO week): "))
+    except ValueError:
+        print("Invalid week number.")
+        session.close()
+        return
+
+    meals = input("Enter Meals for the week (comma-separated): ")
+    meal_plan = MealPlan(user=user, week=week_num, meals=meals)
+    session.add(meal_plan)
+    session.commit()
+    session.close()
+    print("Meal plan added successfully.")
+
+def list_meal_plans():
+    session = Session()
+    user_name = input("Enter User Name: ")
+    user = session.query(User).filter_by(name=user_name).first()
+    if not user:
+        print("User not found.")
+        session.close()
+        return
+
+    meal_plans = session.query(MealPlan).filter_by(user_id=user.id).all()
+    if not meal_plans:
+        print("No meal plans found for this user.")
+    for plan in meal_plans:
+        print(f"ID: {plan.id} | Week: {plan.week} | Meals: {plan.meals} | Created At: {plan.created_at}")
+    session.close()
+
+def update_meal_plan():
+    session = Session()
+    try:
+        plan_id = int(input("Enter Meal Plan ID to update: "))
+    except ValueError:
+        print("Invalid ID.")
+        session.close()
+        return
+
+    meal_plan = session.query(MealPlan).filter_by(id=plan_id).first()
+    if not meal_plan:
+        print("Meal plan not found.")
+        session.close()
+        return
+
+    new_meals = input(f"Enter new meals (currently: {meal_plan.meals}): ")
+    if new_meals.strip():
+        meal_plan.meals = new_meals
+    session.commit()
+    session.close()
+    print("Meal plan updated successfully.")
 
 # ========== MAIN MENU LOOP ==========
 def main():
@@ -104,13 +220,16 @@ def main():
         print("1. Manage Users")
         print("2. Manage Food Entries")
         print("3. Manage Goals")
-        print("4. Exit")
+        print("4. Manage Meal Plans")
+        print("5. Monitor Goal Progress")
+        print("6. Exit")
 
         main_choice = input("Select an option: ")
 
         if main_choice == '1':
             while True:
                 os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Users ===")
                 print("1. Create User")
                 print("2. List Users")
                 print("3. Back to Main Menu")
@@ -121,7 +240,80 @@ def main():
                     list_users()
                 elif user_choice == '3':
                     break
+                else:
+                    print("Invalid option.")
                 input("Press Enter to continue...")
 
         elif main_choice == '2':
             while True:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Food Entries ===")
+                print("1. Add Food Entry")
+                print("2. List Food Entries")
+                print("3. Back to Main Menu")
+                food_choice = input("Select: ")
+                if food_choice == '1':
+                    add_food_entry()
+                elif food_choice == '2':
+                    list_food_entries()
+                elif food_choice == '3':
+                    break
+                else:
+                    print("Invalid option.")
+                input("Press Enter to continue...")
+
+        elif main_choice == '3':
+            while True:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Goals ===")
+                print("1. Set Goal")
+                print("2. List Goals")
+                print("3. Back to Main Menu")
+                goal_choice = input("Select: ")
+                if goal_choice == '1':
+                    set_goal()
+                elif goal_choice == '2':
+                    list_goals()
+                elif goal_choice == '3':
+                    break
+                else:
+                    print("Invalid option.")
+                input("Press Enter to continue...")
+
+        elif main_choice == '4':
+            while True:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("=== Manage Meal Plans ===")
+                print("1. Add Meal Plan")
+                print("2. List Meal Plans")
+                print("3. Update Meal Plan")
+                print("4. Back to Main Menu")
+                meal_choice = input("Select: ")
+                if meal_choice == '1':
+                    add_meal_plan()
+                elif meal_choice == '2':
+                    list_meal_plans()
+                elif meal_choice == '3':
+                    update_meal_plan()
+                elif meal_choice == '4':
+                    break
+                else:
+                    print("Invalid option.")
+                input("Press Enter to continue...")
+
+        elif main_choice == '5':
+            os.system("cls" if os.name == "nt" else "clear")
+            monitor_goal_progress()
+            input("Press Enter to continue...")
+
+        elif main_choice == '6':
+            print("Exiting. Stay healthy!")
+            break
+
+        else:
+            print("Invalid option.")
+            input("Press Enter to continue...")
+
+# Entry point
+if __name__ == "__main__":
+    main()
